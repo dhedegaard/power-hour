@@ -1,5 +1,5 @@
 import { getPriceHistory } from '@/clients/nrgi-client'
-import { addDays, format } from 'date-fns'
+import { addDays, format, isWeekend } from 'date-fns'
 import { cacheLife } from 'next/cache'
 
 type NoonPriceRow =
@@ -103,41 +103,53 @@ export default async function RootPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.date} className="border-t border-slate-200 text-sm text-slate-700">
-                <td className="px-4 py-4 sm:px-6">
-                  <div className="font-medium text-slate-900">
-                    {format(new Date(`${row.date}T00:00:00`), 'EEEE')}
-                  </div>
-                  <div className="text-slate-500">{row.date}</div>
-                </td>
-                <td className="px-4 py-4 sm:px-6">
-                  {row.status === 'available' ? row.localTime.slice(11, 16) : 'Unavailable'}
-                </td>
-                <td className="px-4 py-4 sm:px-6">
-                  {row.status === 'available'
-                    ? `${(row.kwPrice / 100).toFixed(2)} kr/kWh`
-                    : 'Unavailable'}
-                </td>
-                <td className="px-4 py-4 sm:px-6">
-                  {row.status === 'available' ? (
-                    <span
-                      className={
-                        row.isPrediction
-                          ? 'inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800'
-                          : 'inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800'
-                      }
-                    >
-                      {row.isPrediction ? 'Prediction' : 'Actual'}
-                    </span>
-                  ) : (
-                    <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                      Unavailable
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const rowDate = new Date(`${row.date}T00:00:00`)
+              const weekend = isWeekend(rowDate)
+
+              return (
+                <tr
+                  key={row.date}
+                  className={`border-t text-sm ${
+                    weekend
+                      ? 'border-slate-100 bg-slate-50/70 text-slate-400'
+                      : 'border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <td className="px-4 py-4 sm:px-6">
+                    <div className={weekend ? 'font-medium text-slate-500' : 'font-medium text-slate-900'}>
+                      {format(rowDate, 'EEEE')}
+                    </div>
+                    <div className={weekend ? 'text-slate-400' : 'text-slate-500'}>{row.date}</div>
+                  </td>
+                  <td className="px-4 py-4 sm:px-6">
+                    {row.status === 'available' ? row.localTime.slice(11, 16) : 'Unavailable'}
+                  </td>
+                  <td className="px-4 py-4 sm:px-6">
+                    {row.status === 'available'
+                      ? `${(row.kwPrice / 100).toFixed(2)} kr/kWh`
+                      : 'Unavailable'}
+                  </td>
+                  <td className="px-4 py-4 sm:px-6">
+                    {row.status === 'available' ? (
+                      <span
+                        className={
+                          row.isPrediction
+                            ? 'inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800'
+                            : 'inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800'
+                        }
+                      >
+                        {row.isPrediction ? 'Prediction' : 'Actual'}
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                        Unavailable
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </section>
