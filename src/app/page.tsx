@@ -167,7 +167,6 @@ export default async function RootPage() {
       <section className="grid gap-4 md:grid-cols-2">
         {dayCards.map((dayCard, index) => {
           const featuredRow = dayCard.hours.find((row) => row.localTime === '12:00') ?? dayCard.hours[0]
-          const secondaryRows = dayCard.hours.filter((row) => row.localTime !== featuredRow.localTime)
           const hasAvailableHours = dayCard.hours.some((row) => row.status === 'available')
           const featuredPriceClass =
             featuredRow.status === 'available' && featuredRow.priceDkkPerKwh !== null
@@ -240,7 +239,7 @@ export default async function RootPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {secondaryRows.map((row) => (
+                      {dayCard.hours.map((row) => (
                         <tr
                           key={`${dayCard.date}-${row.localTime}`}
                           className={
