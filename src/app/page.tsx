@@ -117,7 +117,9 @@ function getPublishedHourlyPrice(
   const hasCompleteHour =
     hourPrices.length === 4 &&
     ['00', '15', '30', '45'].every((minutes) =>
-      hourPrices.some((entry) => entry.TimeDK === `${dayKey}T${localTime.slice(0, 2)}:${minutes}:00`)
+      hourPrices.some(
+        (entry) => entry.TimeDK === `${dayKey}T${localTime.slice(0, 2)}:${minutes}:00`
+      )
     )
 
   if (!hasCompleteHour) {
@@ -223,7 +225,9 @@ async function getPricePageData(now: Date) {
   return visiblePriceResponses.map((day, index) => ({
     date: day.date,
     label: getDayLabel(day.date, index),
-    hours: targetHours.map((hour) => getHourlyRow(day.date, hour, day.prices, historicalPriceResponses)),
+    hours: targetHours.map((hour) =>
+      getHourlyRow(day.date, hour, day.prices, historicalPriceResponses)
+    ),
   })) satisfies DayPriceCard[]
 }
 
@@ -232,34 +236,45 @@ export default async function RootPage() {
   cacheLife('minutes')
 
   const dayCards = await getPricePageData(new Date())
-  const publishedHours = dayCards.flatMap((dayCard) => dayCard.hours).filter((row) => row.source === 'published')
-  const estimatedHours = dayCards.flatMap((dayCard) => dayCard.hours).filter((row) => row.source === 'estimated')
+  const publishedHours = dayCards
+    .flatMap((dayCard) => dayCard.hours)
+    .filter((row) => row.source === 'published')
+  const estimatedHours = dayCards
+    .flatMap((dayCard) => dayCard.hours)
+    .filter((row) => row.source === 'estimated')
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-12 sm:px-10">
       <header className="space-y-3">
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Power Hour</p>
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">DK1 daytime electricity prices</h1>
+          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+            DK1 daytime electricity prices
+          </h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish DK1 average prices for 06:00 through 22:00 from today through one week ahead, sourced from{' '}
+            Danish DK1 average prices for 06:00 through 22:00 from today through one week ahead,
+            sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
               href="https://www.energidataservice.dk/"
             >
               Energi Data Service
             </a>
-            . When DayAhead prices are not published yet, the page shows server-side estimates based on recent same-hour data.
+            . When DayAhead prices are not published yet, the page shows server-side estimates based
+            on recent same-hour data.
           </p>
         </div>
       </header>
 
       <section className="flex flex-col gap-4">
         {dayCards.map((dayCard) => {
-          const featuredRow = dayCard.hours.find((row) => row.localTime === '12:00') ?? dayCard.hours[0]
+          const featuredRow =
+            dayCard.hours.find((row) => row.localTime === '12:00') ?? dayCard.hours[0]
           const hasNumericHours = dayCard.hours.some((row) => row.priceDkkPerKwh !== null)
           const featuredPriceClass =
-            featuredRow.priceDkkPerKwh !== null ? getPriceColorClass(featuredRow.priceDkkPerKwh) : 'text-amber-950'
+            featuredRow.priceDkkPerKwh !== null
+              ? getPriceColorClass(featuredRow.priceDkkPerKwh)
+              : 'text-amber-950'
 
           return (
             <article
@@ -277,8 +292,12 @@ export default async function RootPage() {
               </p>
               <div className="mt-4 space-y-6">
                 <div>
-                  <div className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}>
-                    {featuredRow.priceDkkPerKwh !== null ? `${featuredRow.priceDkkPerKwh.toFixed(2)} kr/kWh` : 'Unpublished'}
+                  <div
+                    className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}
+                  >
+                    {featuredRow.priceDkkPerKwh !== null
+                      ? `${featuredRow.priceDkkPerKwh.toFixed(2)} kr/kWh`
+                      : 'Unpublished'}
                   </div>
                   <p
                     className={`mt-3 text-sm leading-6 sm:text-base ${
@@ -331,7 +350,7 @@ export default async function RootPage() {
                         {dayCard.hours.map((row) => (
                           <th
                             key={`${dayCard.date}-${row.localTime}-time`}
-                            className={`min-w-20 px-2 py-2 text-center font-medium ${
+                            className={`px-2 py-2 text-center font-medium ${
                               row.source === 'unavailable' ? 'text-amber-900' : 'text-slate-700'
                             }`}
                           >
@@ -344,7 +363,7 @@ export default async function RootPage() {
                         {dayCard.hours.map((row) => (
                           <td
                             key={`${dayCard.date}-${row.localTime}-price`}
-                            className={`min-w-20 px-2 py-2 text-center ${
+                            className={`px-2 py-2 text-center ${
                               row.source === 'unavailable'
                                 ? 'bg-amber-50 text-amber-950'
                                 : row.source === 'estimated'
@@ -371,14 +390,17 @@ export default async function RootPage() {
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Overview</p>
         <div className="mt-4 space-y-3 text-sm text-slate-600 sm:text-base">
           <p>
-            {publishedHours.length} published and {estimatedHours.length} estimated hourly prices are shown across{' '}
-            {dayCards.length} days.
+            {publishedHours.length} published and {estimatedHours.length} estimated hourly prices
+            are shown across {dayCards.length} days.
           </p>
           <p>
-            The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four 15-minute rows for each
-            tracked hour from 06:00 through 22:59.
+            The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four
+            15-minute rows for each tracked hour from 06:00 through 22:59.
           </p>
-          <p>Missing future hours are estimated on the server from recent same-hour prices with extra weekday weighting.</p>
+          <p>
+            Missing future hours are estimated on the server from recent same-hour prices with extra
+            weekday weighting.
+          </p>
         </div>
       </section>
     </main>
