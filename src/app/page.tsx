@@ -303,8 +303,12 @@ export default async function RootPage() {
                     >
                       {featuredRow.source === 'published' &&
                         `Published average at ${featuredRow.localTime} on ${featuredRow.date}.`}
-                      {featuredRow.source === 'estimated' &&
-                        `Estimated average at ${featuredRow.localTime} on ${featuredRow.date}, based on recent same-hour prices.`}
+                      {featuredRow.source === 'estimated' && (
+                        <>
+                          Estimated average at {featuredRow.localTime} on {featuredRow.date},<br />
+                          based on recent same-hour prices.
+                        </>
+                      )}
                       {featuredRow.source === 'unavailable' &&
                         `The ${featuredRow.localTime} average for ${featuredRow.date} is not available yet and could not be estimated from recent data.`}
                     </p>
