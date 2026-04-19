@@ -93,7 +93,6 @@ export default async function RootPage() {
             <tr className="text-sm text-slate-600">
               <th className="px-4 py-3 font-medium sm:px-6">Date</th>
               <th className="px-4 py-3 font-medium sm:px-6">Local time</th>
-              <th className="px-4 py-3 font-medium sm:px-6">Total incl. VAT</th>
               <th className="px-4 py-3 font-medium sm:px-6">kWh price</th>
               <th className="px-4 py-3 font-medium sm:px-6">Type</th>
             </tr>
@@ -107,10 +106,7 @@ export default async function RootPage() {
                 </td>
                 <td className="px-4 py-4 sm:px-6">{row.status === 'available' ? row.localTime.slice(11, 16) : 'Unavailable'}</td>
                 <td className="px-4 py-4 sm:px-6">
-                  {row.status === 'available' ? `${row.totalPriceInclVat.toFixed(2)} øre/kWh` : 'Unavailable'}
-                </td>
-                <td className="px-4 py-4 sm:px-6">
-                  {row.status === 'available' ? `${row.kwPrice.toFixed(4)} kr/kWh` : 'Unavailable'}
+                  {row.status === 'available' ? `${(row.kwPrice / 100).toFixed(2)} kr/kWh` : 'Unavailable'}
                 </td>
                 <td className="px-4 py-4 sm:px-6">
                   {row.status === 'available' ? (
