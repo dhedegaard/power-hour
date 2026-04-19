@@ -203,7 +203,7 @@ async function getPricePageData(now: Date) {
 
   const todayKey = formatDateParts(now).dayKey
   const historicalDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, -(7 - index)))
-  const visibleDayKeys = Array.from({ length: 8 }, (_, index) => addDays(todayKey, index))
+  const visibleDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, index))
 
   const historicalPriceResponses = await Promise.all(
     historicalDayKeys.map(async (dayKey) => ({
@@ -249,8 +249,7 @@ export default async function RootPage() {
             Daytime electricity prices
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish average prices for 07:00 through 20:00 from today through one week ahead, sourced
-            from{' '}
+            Danish average prices for 07:00 through 20:00 for the next 7 days, sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
               href="https://www.energidataservice.dk/"
