@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
