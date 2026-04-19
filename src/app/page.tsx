@@ -1,23 +1,19 @@
-import { getPriceHistory } from "@/clients/nrgi-client";
-import { addDays } from 'date-fns';
-import { use } from "react";
+import { getPriceHistory } from '@/clients/nrgi-client'
+import { cacheLife } from 'next/cache'
 
-export default function Home() {
-  const today = new Date()
-  today.setHours(0,0,0,0)
+export default async function RootPage() {
+  'use cache'
+  cacheLife('minutes')
 
-  const data = use(getPriceHistory({
+  const data = await getPriceHistory({
     region: 'DK1',
-    from: addDays(today, 0).toISOString(),
-    to: addDays(today, 7).toISOString(),
-    includeGrid: false,
-  }))
+    date: new Date(),
+  })
 
-  return (<>
-    <div>TODO:</div>
-    <pre>
-      {JSON.stringify(data.prices, null, 2)}
-    </pre>
-</>
- );
+  return (
+    <>
+      <div>TODO:</div>
+      <pre>{JSON.stringify(data.prices, null, 2)}</pre>
+    </>
+  )
 }
