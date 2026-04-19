@@ -62,11 +62,11 @@ function addDays(dayKey: string, daysToAdd: number) {
 }
 
 function getPriceColorClass(priceDkkPerKwh: number) {
-  if (priceDkkPerKwh <= 0.5) {
+  if (priceDkkPerKwh <= 0.3) {
     return 'text-emerald-700 font-semibold'
   }
 
-  if (priceDkkPerKwh < 1) {
+  if (priceDkkPerKwh <= 0.8) {
     return 'text-yellow-600'
   }
 
