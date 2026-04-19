@@ -4,7 +4,7 @@ export const PriceHistoryPrice = z.looseObject({
   localTime: z.iso.datetime({ offset: true }),
   utcTime: z.iso.datetime({ offset: true }),
   isPrediction: z.boolean(),
-  kwPrice: z.number().nonnegative(),
+  kwPrice: z.number(),
   totalGrid: z.number(),
   totalRetail: z.number(),
   totalPriceInclVat: z.number(),
