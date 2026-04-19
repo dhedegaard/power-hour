@@ -20,7 +20,6 @@ type HistoricalDay = {
 }
 
 const targetHours = [
-  '06:00',
   '07:00',
   '08:00',
   '09:00',
@@ -35,8 +34,6 @@ const targetHours = [
   '18:00',
   '19:00',
   '20:00',
-  '21:00',
-  '22:00',
 ] as const
 
 const datePartFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -252,7 +249,7 @@ export default async function RootPage() {
             DK1 daytime electricity prices
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish DK1 average prices for 06:00 through 22:00 from today through one week ahead,
+            Danish DK1 average prices for 07:00 through 20:00 from today through one week ahead,
             sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
@@ -395,7 +392,7 @@ export default async function RootPage() {
           </p>
           <p>
             The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four
-            15-minute rows for each tracked hour from 06:00 through 22:59.
+            15-minute rows for each tracked hour from 07:00 through 20:59.
           </p>
           <p>
             Missing future hours are estimated on the server from recent same-hour prices with extra
