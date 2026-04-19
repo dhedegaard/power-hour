@@ -1,4 +1,4 @@
-import { getDailyPrices } from '@/clients/elprisenligenu-client'
+import { getDailyPrices } from '@/clients/energidata-client'
 import { cacheLife } from 'next/cache'
 
 type NoonPriceRow = {
@@ -37,8 +37,8 @@ function addDays(dayKey: string, daysToAdd: number) {
 }
 
 function getNoonRow(dayKey: string, dailyPrices: Awaited<ReturnType<typeof getDailyPrices>>): NoonPriceRow {
-  const noonPrice = dailyPrices?.find((entry) => {
-    return entry.time_start.slice(0, 10) === dayKey && entry.time_start.slice(11, 16) === '12:00'
+  const noonPrice = dailyPrices?.records.find((entry) => {
+    return entry.TimeDK.slice(0, 10) === dayKey && entry.TimeDK.slice(11, 19) === '12:00:00'
   })
 
   if (!noonPrice) {
@@ -53,7 +53,7 @@ function getNoonRow(dayKey: string, dailyPrices: Awaited<ReturnType<typeof getDa
   return {
     date: dayKey,
     localTime: '12:00',
-    priceDkkPerKwh: noonPrice.DKK_per_kWh,
+    priceDkkPerKwh: noonPrice.DayAheadPriceDKK / 1000,
     status: 'available',
   }
 }
@@ -90,11 +90,11 @@ export default async function RootPage() {
             Danish noon snapshots for today and tomorrow in DK1, sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
-              href="https://www.elprisenligenu.dk/elpris-api"
+              href="https://www.energidataservice.dk/"
             >
-              Elprisen lige nu
+              Energi Data Service
             </a>
-            . Tomorrow appears when that day&apos;s file has been published.
+            . Tomorrow appears when Energinet has published that day&apos;s DayAheadPrices rows.
           </p>
         </div>
       </header>
@@ -132,7 +132,7 @@ export default async function RootPage() {
                 >
                   {row.status === 'available'
                     ? `DK1 price at ${row.localTime} on ${row.date}.`
-                    : `The ${row.localTime} DK1 price for ${row.date} is not available from Elprisen lige nu yet.`}
+                    : `The ${row.localTime} DK1 price for ${row.date} is not available from Energi Data Service yet.`}
                 </p>
               </div>
               <div
@@ -168,7 +168,7 @@ export default async function RootPage() {
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Overview</p>
         <div className="mt-4 space-y-3 text-sm text-slate-600 sm:text-base">
           <p>{availableRows.length} of 2 noon prices are currently published.</p>
-          <p>The source provides day-based JSON files for DK1 and typically exposes today plus tomorrow.</p>
+          <p>The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and returns 15-minute price rows.</p>
           <p>Prices are shown without adding client-side fetching or changing the route structure.</p>
         </div>
       </section>
