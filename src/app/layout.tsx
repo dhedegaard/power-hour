@@ -5,11 +5,7 @@ export const metadata: Metadata = {
   title: 'Power Hour',
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">{children}</body>

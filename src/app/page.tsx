@@ -40,7 +40,9 @@ async function getNoonPriceRows(startDate: Date): Promise<NoonPriceRow[]> {
   )
 
   return dates.map((date, index) => {
-    const noonPrice = priceHistory[index].prices.find((price) => price.localTime.slice(11, 16) === '12:00')
+    const noonPrice = priceHistory[index].prices.find(
+      (price) => price.localTime.slice(11, 16) === '12:00'
+    )
 
     if (!noonPrice) {
       return {
@@ -77,12 +79,15 @@ export default async function RootPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-6 py-12 sm:px-10">
       <header className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Power Hour</p>
+        <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Power Hour</p>
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">DK1 noon electricity prices</h1>
+          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+            DK1 noon electricity prices
+          </h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Local noon snapshots for {format(startDate, 'MMMM d, yyyy')} through {format(endDate, 'MMMM d, yyyy')}.
-            Future dates may be marked as predictions when the source is serving estimated prices.
+            Local noon snapshots for {format(startDate, 'MMMM d, yyyy')} through{' '}
+            {format(endDate, 'MMMM d, yyyy')}. Future dates may be marked as predictions when the
+            source is serving estimated prices.
           </p>
         </div>
       </header>
@@ -101,12 +106,18 @@ export default async function RootPage() {
             {rows.map((row) => (
               <tr key={row.date} className="border-t border-slate-200 text-sm text-slate-700">
                 <td className="px-4 py-4 sm:px-6">
-                  <div className="font-medium text-slate-900">{format(new Date(`${row.date}T00:00:00`), 'EEEE')}</div>
+                  <div className="font-medium text-slate-900">
+                    {format(new Date(`${row.date}T00:00:00`), 'EEEE')}
+                  </div>
                   <div className="text-slate-500">{row.date}</div>
                 </td>
-                <td className="px-4 py-4 sm:px-6">{row.status === 'available' ? row.localTime.slice(11, 16) : 'Unavailable'}</td>
                 <td className="px-4 py-4 sm:px-6">
-                  {row.status === 'available' ? `${(row.kwPrice / 100).toFixed(2)} kr/kWh` : 'Unavailable'}
+                  {row.status === 'available' ? row.localTime.slice(11, 16) : 'Unavailable'}
+                </td>
+                <td className="px-4 py-4 sm:px-6">
+                  {row.status === 'available'
+                    ? `${(row.kwPrice / 100).toFixed(2)} kr/kWh`
+                    : 'Unavailable'}
                 </td>
                 <td className="px-4 py-4 sm:px-6">
                   {row.status === 'available' ? (
