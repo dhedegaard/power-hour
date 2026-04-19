@@ -5,12 +5,18 @@ type HourlyPriceRow = {
   date: string
   localTime: string
   priceDkkPerKwh: number | null
-  status: 'available' | 'unavailable'
+  source: 'published' | 'estimated' | 'unavailable'
 }
 
 type DayPriceCard = {
   date: string
+  label: string
   hours: HourlyPriceRow[]
+}
+
+type HistoricalDay = {
+  date: string
+  prices: Awaited<ReturnType<typeof getDailyPrices>>
 }
 
 const targetHours = [
@@ -40,6 +46,13 @@ const datePartFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 })
 
+const cardLabelFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Copenhagen',
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+})
+
 function formatDateParts(date: Date) {
   const parts = Object.fromEntries(
     datePartFormatter
@@ -53,9 +66,13 @@ function formatDateParts(date: Date) {
   }
 }
 
-function addDays(dayKey: string, daysToAdd: number) {
+function dayKeyToDate(dayKey: string) {
   const [year, month, day] = dayKey.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+function addDays(dayKey: string, daysToAdd: number) {
+  const date = dayKeyToDate(dayKey)
   date.setUTCDate(date.getUTCDate() + daysToAdd)
 
   return formatDateParts(date).dayKey
@@ -73,11 +90,23 @@ function getPriceColorClass(priceDkkPerKwh: number) {
   return 'text-red-700'
 }
 
-function getHourlyRow(
+function getDayLabel(dayKey: string, offset: number) {
+  if (offset === 0) {
+    return 'Today'
+  }
+
+  if (offset === 1) {
+    return 'Tomorrow'
+  }
+
+  return cardLabelFormatter.format(dayKeyToDate(dayKey))
+}
+
+function getPublishedHourlyPrice(
   dayKey: string,
   localTime: (typeof targetHours)[number],
   dailyPrices: Awaited<ReturnType<typeof getDailyPrices>>
-): HourlyPriceRow {
+) {
   const hourStart = `${dayKey}T${localTime}:00`
   const nextHour = `${String(Number.parseInt(localTime.slice(0, 2), 10) + 1).padStart(2, '0')}:00:00`
   const hourPrices =
@@ -88,29 +117,84 @@ function getHourlyRow(
   const hasCompleteHour =
     hourPrices.length === 4 &&
     ['00', '15', '30', '45'].every((minutes) =>
-      hourPrices.some(
-        (entry) =>
-          entry.TimeDK === `${dayKey}T${localTime.slice(0, 2)}:${minutes}:00`
-      )
+      hourPrices.some((entry) => entry.TimeDK === `${dayKey}T${localTime.slice(0, 2)}:${minutes}:00`)
     )
 
   if (!hasCompleteHour) {
-    return {
-      date: dayKey,
-      localTime,
-      priceDkkPerKwh: null,
-      status: 'unavailable',
-    }
+    return null
   }
 
   const averageHourPriceDkk =
     hourPrices.reduce((sum, entry) => sum + entry.DayAheadPriceDKK, 0) / hourPrices.length
 
+  return averageHourPriceDkk / 1000
+}
+
+function getWeekdayIndex(dayKey: string) {
+  return dayKeyToDate(dayKey).getUTCDay()
+}
+
+function getEstimatedHourlyPrice(
+  targetDayKey: string,
+  localTime: (typeof targetHours)[number],
+  historicalDays: HistoricalDay[]
+) {
+  const targetWeekday = getWeekdayIndex(targetDayKey)
+  const samples = historicalDays.flatMap((historicalDay) => {
+    const price = getPublishedHourlyPrice(historicalDay.date, localTime, historicalDay.prices)
+
+    if (price === null) {
+      return []
+    }
+
+    const weight = getWeekdayIndex(historicalDay.date) === targetWeekday ? 2 : 1
+
+    return [{ price, weight }]
+  })
+
+  if (samples.length < 3) {
+    return null
+  }
+
+  const totalWeight = samples.reduce((sum, sample) => sum + sample.weight, 0)
+  const weightedSum = samples.reduce((sum, sample) => sum + sample.price * sample.weight, 0)
+
+  return weightedSum / totalWeight
+}
+
+function getHourlyRow(
+  dayKey: string,
+  localTime: (typeof targetHours)[number],
+  dailyPrices: Awaited<ReturnType<typeof getDailyPrices>>,
+  historicalDays: HistoricalDay[]
+): HourlyPriceRow {
+  const publishedPrice = getPublishedHourlyPrice(dayKey, localTime, dailyPrices)
+
+  if (publishedPrice !== null) {
+    return {
+      date: dayKey,
+      localTime,
+      priceDkkPerKwh: publishedPrice,
+      source: 'published',
+    }
+  }
+
+  const estimatedPrice = getEstimatedHourlyPrice(dayKey, localTime, historicalDays)
+
+  if (estimatedPrice !== null) {
+    return {
+      date: dayKey,
+      localTime,
+      priceDkkPerKwh: estimatedPrice,
+      source: 'estimated',
+    }
+  }
+
   return {
     date: dayKey,
     localTime,
-    priceDkkPerKwh: averageHourPriceDkk / 1000,
-    status: 'available',
+    priceDkkPerKwh: null,
+    source: 'unavailable',
   }
 }
 
@@ -119,23 +203,28 @@ async function getPricePageData(now: Date) {
   cacheLife('minutes')
 
   const todayKey = formatDateParts(now).dayKey
-  const tomorrowKey = addDays(todayKey, 1)
+  const historicalDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, -(7 - index)))
+  const visibleDayKeys = Array.from({ length: 8 }, (_, index) => addDays(todayKey, index))
 
-  const [todayPrices, tomorrowPrices] = await Promise.all([
-    getDailyPrices({ dayKey: todayKey, priceArea: 'DK1' }),
-    getDailyPrices({ dayKey: tomorrowKey, priceArea: 'DK1' }),
-  ])
+  const historicalPriceResponses = await Promise.all(
+    historicalDayKeys.map(async (dayKey) => ({
+      date: dayKey,
+      prices: await getDailyPrices({ dayKey, priceArea: 'DK1' }),
+    }))
+  )
 
-  return [
-    {
-      date: todayKey,
-      hours: targetHours.map((hour) => getHourlyRow(todayKey, hour, todayPrices)),
-    },
-    {
-      date: tomorrowKey,
-      hours: targetHours.map((hour) => getHourlyRow(tomorrowKey, hour, tomorrowPrices)),
-    },
-  ] satisfies DayPriceCard[]
+  const visiblePriceResponses = await Promise.all(
+    visibleDayKeys.map(async (dayKey) => ({
+      date: dayKey,
+      prices: await getDailyPrices({ dayKey, priceArea: 'DK1' }),
+    }))
+  )
+
+  return visiblePriceResponses.map((day, index) => ({
+    date: day.date,
+    label: getDayLabel(day.date, index),
+    hours: targetHours.map((hour) => getHourlyRow(day.date, hour, day.prices, historicalPriceResponses)),
+  })) satisfies DayPriceCard[]
 }
 
 export default async function RootPage() {
@@ -143,129 +232,132 @@ export default async function RootPage() {
   cacheLife('minutes')
 
   const dayCards = await getPricePageData(new Date())
-  const availableHours = dayCards.flatMap((dayCard) => dayCard.hours).filter((row) => row.status === 'available')
+  const publishedHours = dayCards.flatMap((dayCard) => dayCard.hours).filter((row) => row.source === 'published')
+  const estimatedHours = dayCards.flatMap((dayCard) => dayCard.hours).filter((row) => row.source === 'estimated')
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-6 py-12 sm:px-10">
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-12 sm:px-10">
       <header className="space-y-3">
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Power Hour</p>
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">DK1 daytime electricity prices</h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish DK1 average prices for 06:00 through 22:00 today and tomorrow, sourced from{' '}
+            Danish DK1 average prices for 06:00 through 22:00 from today through one week ahead, sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
               href="https://www.energidataservice.dk/"
             >
               Energi Data Service
             </a>
-            . Tomorrow appears when Energinet has published that day&apos;s DayAheadPrices rows.
+            . When DayAhead prices are not published yet, the page shows server-side estimates based on recent same-hour data.
           </p>
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        {dayCards.map((dayCard, index) => {
+      <section className="flex flex-col gap-4">
+        {dayCards.map((dayCard) => {
           const featuredRow = dayCard.hours.find((row) => row.localTime === '12:00') ?? dayCard.hours[0]
-          const hasAvailableHours = dayCard.hours.some((row) => row.status === 'available')
+          const hasNumericHours = dayCard.hours.some((row) => row.priceDkkPerKwh !== null)
           const featuredPriceClass =
-            featuredRow.status === 'available' && featuredRow.priceDkkPerKwh !== null
-              ? getPriceColorClass(featuredRow.priceDkkPerKwh)
-              : 'text-amber-950'
+            featuredRow.priceDkkPerKwh !== null ? getPriceColorClass(featuredRow.priceDkkPerKwh) : 'text-amber-950'
 
           return (
             <article
               key={dayCard.date}
               className={`rounded-3xl border p-6 shadow-sm sm:p-8 ${
-                hasAvailableHours ? 'border-slate-200 bg-white' : 'border-amber-200 bg-amber-50'
+                hasNumericHours ? 'border-slate-200 bg-white' : 'border-amber-200 bg-amber-50'
               }`}
             >
               <p
                 className={`text-sm font-medium tracking-[0.2em] uppercase ${
-                  hasAvailableHours ? 'text-slate-500' : 'text-amber-700'
+                  hasNumericHours ? 'text-slate-500' : 'text-amber-700'
                 }`}
               >
-              {index === 0 ? 'Today' : 'Tomorrow'}
+                {dayCard.label}
               </p>
               <div className="mt-4 space-y-6">
                 <div>
-                  <div
-                    className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}
-                  >
-                    {featuredRow.status === 'available'
-                      ? `${featuredRow.priceDkkPerKwh?.toFixed(2)} kr/kWh`
-                      : 'Not published'}
+                  <div className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}>
+                    {featuredRow.priceDkkPerKwh !== null ? `${featuredRow.priceDkkPerKwh.toFixed(2)} kr/kWh` : 'Unpublished'}
                   </div>
                   <p
                     className={`mt-3 text-sm leading-6 sm:text-base ${
-                      featuredRow.status === 'available' ? 'text-slate-600' : 'text-amber-900'
+                      featuredRow.source === 'unavailable' ? 'text-amber-900' : 'text-slate-600'
                     }`}
                   >
-                    {featuredRow.status === 'available'
-                      ? `Average DK1 price at ${featuredRow.localTime} on ${featuredRow.date}.`
-                      : `The ${featuredRow.localTime} DK1 average for ${featuredRow.date} is not available from Energi Data Service yet.`}
+                    {featuredRow.source === 'published' &&
+                      `Published DK1 average at ${featuredRow.localTime} on ${featuredRow.date}.`}
+                    {featuredRow.source === 'estimated' &&
+                      `Estimated DK1 average at ${featuredRow.localTime} on ${featuredRow.date}, based on recent same-hour prices.`}
+                    {featuredRow.source === 'unavailable' &&
+                      `The ${featuredRow.localTime} DK1 average for ${featuredRow.date} is not available yet and could not be estimated from recent data.`}
                   </p>
                 </div>
                 <div
                   className={`flex flex-wrap gap-3 text-sm ${
-                    featuredRow.status === 'available' ? 'text-slate-600' : 'text-amber-900'
+                    featuredRow.source === 'unavailable' ? 'text-amber-900' : 'text-slate-600'
                   }`}
                 >
                   <span
                     className={`inline-flex rounded-full px-3 py-1 font-medium ${
-                      featuredRow.status === 'available'
-                        ? 'bg-slate-100 text-slate-700'
-                        : 'bg-amber-100 text-amber-800'
+                      featuredRow.source === 'unavailable'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-700'
                     }`}
                   >
                     {featuredRow.localTime} DK time
                   </span>
                   <span
                     className={`inline-flex rounded-full px-3 py-1 font-medium ${
-                      featuredRow.status === 'available'
+                      featuredRow.source === 'published'
                         ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-slate-100 text-slate-700'
+                        : featuredRow.source === 'estimated'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-slate-100 text-slate-700'
                     }`}
                   >
-                    {featuredRow.status === 'available' ? 'Published' : 'Pending'}
+                    {featuredRow.source === 'published'
+                      ? 'Published'
+                      : featuredRow.source === 'estimated'
+                        ? 'Estimated'
+                        : 'Unavailable'}
                   </span>
                 </div>
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full border-collapse text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-600">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Time</th>
-                        <th className="px-4 py-3 font-medium">Price</th>
-                      </tr>
-                    </thead>
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="min-w-full border-collapse text-left text-sm">
                     <tbody>
-                      {dayCard.hours.map((row) => (
-                        <tr
-                          key={`${dayCard.date}-${row.localTime}`}
-                          className={
-                            row.status === 'available'
-                              ? 'border-t border-slate-200 bg-white'
-                              : 'border-t border-amber-200 bg-amber-50'
-                          }
-                        >
-                          <td
-                            className={`px-4 py-3 font-medium ${
-                              row.status === 'available' ? 'text-slate-800' : 'text-amber-950'
+                      <tr className="bg-slate-50 text-slate-600">
+                        <th className="px-3 py-2 font-medium">Time</th>
+                        {dayCard.hours.map((row) => (
+                          <th
+                            key={`${dayCard.date}-${row.localTime}-time`}
+                            className={`min-w-20 px-2 py-2 text-center font-medium ${
+                              row.source === 'unavailable' ? 'text-amber-900' : 'text-slate-700'
                             }`}
                           >
                             {row.localTime}
-                          </td>
+                          </th>
+                        ))}
+                      </tr>
+                      <tr className="border-t border-slate-200">
+                        <th className="px-3 py-2 font-medium text-slate-600">Price kr/kWh</th>
+                        {dayCard.hours.map((row) => (
                           <td
-                            className={`px-4 py-3 ${
-                              row.status === 'available' && row.priceDkkPerKwh !== null
-                                ? getPriceColorClass(row.priceDkkPerKwh)
-                                : 'text-amber-950'
+                            key={`${dayCard.date}-${row.localTime}-price`}
+                            className={`min-w-20 px-2 py-2 text-center ${
+                              row.source === 'unavailable'
+                                ? 'bg-amber-50 text-amber-950'
+                                : row.source === 'estimated'
+                                  ? `bg-yellow-50 ${row.priceDkkPerKwh !== null ? getPriceColorClass(row.priceDkkPerKwh) : 'text-yellow-800'}`
+                                  : `bg-white ${row.priceDkkPerKwh !== null ? getPriceColorClass(row.priceDkkPerKwh) : 'text-slate-900'}`
                             }`}
                           >
-                            {row.status === 'available' ? `${row.priceDkkPerKwh?.toFixed(2)} kr/kWh` : 'Unpublished'}
+                            {row.source === 'published' && `${row.priceDkkPerKwh?.toFixed(2)}`}
+                            {row.source === 'estimated' && `${row.priceDkkPerKwh?.toFixed(2)}*`}
+                            {row.source === 'unavailable' && 'Unpublished'}
                           </td>
-                        </tr>
-                      ))}
+                        ))}
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -278,9 +370,15 @@ export default async function RootPage() {
       <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm sm:p-8">
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Overview</p>
         <div className="mt-4 space-y-3 text-sm text-slate-600 sm:text-base">
-          <p>{availableHours.length} of {dayCards.length * targetHours.length} tracked hourly prices are currently published.</p>
-          <p>The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four 15-minute rows for each tracked hour from 06:00 through 22:59.</p>
-          <p>Prices are shown without adding client-side fetching or changing the route structure.</p>
+          <p>
+            {publishedHours.length} published and {estimatedHours.length} estimated hourly prices are shown across{' '}
+            {dayCards.length} days.
+          </p>
+          <p>
+            The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four 15-minute rows for each
+            tracked hour from 06:00 through 22:59.
+          </p>
+          <p>Missing future hours are estimated on the server from recent same-hour prices with extra weekday weighting.</p>
         </div>
       </section>
     </main>
