@@ -37,11 +37,18 @@ function addDays(dayKey: string, daysToAdd: number) {
 }
 
 function getNoonRow(dayKey: string, dailyPrices: Awaited<ReturnType<typeof getDailyPrices>>): NoonPriceRow {
-  const noonPrice = dailyPrices?.records.find((entry) => {
-    return entry.TimeDK.slice(0, 10) === dayKey && entry.TimeDK.slice(11, 19) === '12:00:00'
-  })
+  const noonHourPrices =
+    dailyPrices?.records.filter((entry) => {
+      return entry.TimeDK >= `${dayKey}T12:00:00` && entry.TimeDK < `${dayKey}T13:00:00`
+    }) ?? []
 
-  if (!noonPrice) {
+  const hasCompleteNoonHour =
+    noonHourPrices.length === 4 &&
+    ['12:00:00', '12:15:00', '12:30:00', '12:45:00'].every((time) =>
+      noonHourPrices.some((entry) => entry.TimeDK === `${dayKey}T${time}`)
+    )
+
+  if (!hasCompleteNoonHour) {
     return {
       date: dayKey,
       localTime: '12:00',
@@ -50,10 +57,13 @@ function getNoonRow(dayKey: string, dailyPrices: Awaited<ReturnType<typeof getDa
     }
   }
 
+  const averageNoonPriceDkk =
+    noonHourPrices.reduce((sum, entry) => sum + entry.DayAheadPriceDKK, 0) / noonHourPrices.length
+
   return {
     date: dayKey,
     localTime: '12:00',
-    priceDkkPerKwh: noonPrice.DayAheadPriceDKK / 1000,
+    priceDkkPerKwh: averageNoonPriceDkk / 1000,
     status: 'available',
   }
 }
@@ -87,7 +97,7 @@ export default async function RootPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">DK1 noon electricity prices</h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish noon snapshots for today and tomorrow in DK1, sourced from{' '}
+            Danish noon-hour averages for today and tomorrow in DK1, sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
               href="https://www.energidataservice.dk/"
@@ -131,8 +141,8 @@ export default async function RootPage() {
                   }`}
                 >
                   {row.status === 'available'
-                    ? `DK1 price at ${row.localTime} on ${row.date}.`
-                    : `The ${row.localTime} DK1 price for ${row.date} is not available from Energi Data Service yet.`}
+                    ? `Average DK1 price at ${row.localTime} on ${row.date}.`
+                    : `The ${row.localTime} DK1 average for ${row.date} is not available from Energi Data Service yet.`}
                 </p>
               </div>
               <div
@@ -168,7 +178,7 @@ export default async function RootPage() {
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Overview</p>
         <div className="mt-4 space-y-3 text-sm text-slate-600 sm:text-base">
           <p>{availableRows.length} of 2 noon prices are currently published.</p>
-          <p>The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and returns 15-minute price rows.</p>
+          <p>The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four 15-minute rows from 12:00 to 12:59.</p>
           <p>Prices are shown without adding client-side fetching or changing the route structure.</p>
         </div>
       </section>
