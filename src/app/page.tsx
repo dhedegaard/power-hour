@@ -61,6 +61,18 @@ function addDays(dayKey: string, daysToAdd: number) {
   return formatDateParts(date).dayKey
 }
 
+function getPriceColorClass(priceDkkPerKwh: number) {
+  if (priceDkkPerKwh <= 0.5) {
+    return 'text-emerald-700 font-semibold'
+  }
+
+  if (priceDkkPerKwh < 1) {
+    return 'text-yellow-600'
+  }
+
+  return 'text-red-700'
+}
+
 function getHourlyRow(
   dayKey: string,
   localTime: (typeof targetHours)[number],
@@ -157,6 +169,10 @@ export default async function RootPage() {
           const featuredRow = dayCard.hours.find((row) => row.localTime === '12:00') ?? dayCard.hours[0]
           const secondaryRows = dayCard.hours.filter((row) => row.localTime !== featuredRow.localTime)
           const hasAvailableHours = dayCard.hours.some((row) => row.status === 'available')
+          const featuredPriceClass =
+            featuredRow.status === 'available' && featuredRow.priceDkkPerKwh !== null
+              ? getPriceColorClass(featuredRow.priceDkkPerKwh)
+              : 'text-amber-950'
 
           return (
             <article
@@ -175,9 +191,7 @@ export default async function RootPage() {
               <div className="mt-4 space-y-6">
                 <div>
                   <div
-                    className={`text-5xl font-semibold tracking-tight sm:text-6xl ${
-                      featuredRow.status === 'available' ? 'text-slate-900' : 'text-amber-950'
-                    }`}
+                    className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}
                   >
                     {featuredRow.status === 'available'
                       ? `${featuredRow.priceDkkPerKwh?.toFixed(2)} kr/kWh`
@@ -244,7 +258,9 @@ export default async function RootPage() {
                           </td>
                           <td
                             className={`px-4 py-3 ${
-                              row.status === 'available' ? 'text-slate-900' : 'text-amber-950'
+                              row.status === 'available' && row.priceDkkPerKwh !== null
+                                ? getPriceColorClass(row.priceDkkPerKwh)
+                                : 'text-amber-950'
                             }`}
                           >
                             {row.status === 'available' ? `${row.priceDkkPerKwh?.toFixed(2)} kr/kWh` : 'Unpublished'}
