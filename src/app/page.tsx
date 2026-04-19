@@ -13,7 +13,25 @@ type DayPriceCard = {
   hours: HourlyPriceRow[]
 }
 
-const targetHours = ['10:00', '11:00', '12:00', '13:00', '14:00'] as const
+const targetHours = [
+  '06:00',
+  '07:00',
+  '08:00',
+  '09:00',
+  '10:00',
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+  '17:00',
+  '18:00',
+  '19:00',
+  '20:00',
+  '21:00',
+  '22:00',
+] as const
 
 const datePartFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Copenhagen',
@@ -120,9 +138,9 @@ export default async function RootPage() {
       <header className="space-y-3">
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Power Hour</p>
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">DK1 late-morning electricity prices</h1>
+          <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">DK1 daytime electricity prices</h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish DK1 average prices for 10:00 through 14:00 today and tomorrow, sourced from{' '}
+            Danish DK1 average prices for 06:00 through 22:00 today and tomorrow, sourced from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
               href="https://www.energidataservice.dk/"
@@ -199,43 +217,42 @@ export default async function RootPage() {
                     {featuredRow.status === 'available' ? 'Published' : 'Pending'}
                   </span>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {secondaryRows.map((row) => (
-                    <div
-                      key={`${dayCard.date}-${row.localTime}`}
-                      className={`rounded-2xl border px-4 py-4 ${
-                        row.status === 'available'
-                          ? 'border-slate-200 bg-slate-50'
-                          : 'border-amber-200 bg-amber-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p
-                          className={`text-sm font-medium ${
-                            row.status === 'available' ? 'text-slate-700' : 'text-amber-900'
-                          }`}
-                        >
-                          {row.localTime}
-                        </p>
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <table className="w-full border-collapse text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Time</th>
+                        <th className="px-4 py-3 font-medium">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {secondaryRows.map((row) => (
+                        <tr
+                          key={`${dayCard.date}-${row.localTime}`}
+                          className={
                             row.status === 'available'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-slate-100 text-slate-700'
-                          }`}
+                              ? 'border-t border-slate-200 bg-white'
+                              : 'border-t border-amber-200 bg-amber-50'
+                          }
                         >
-                          {row.status === 'available' ? 'Published' : 'Pending'}
-                        </span>
-                      </div>
-                      <p
-                        className={`mt-3 text-2xl font-semibold tracking-tight ${
-                          row.status === 'available' ? 'text-slate-900' : 'text-amber-950'
-                        }`}
-                      >
-                        {row.status === 'available' ? `${row.priceDkkPerKwh?.toFixed(2)} kr/kWh` : 'Not published'}
-                      </p>
-                    </div>
-                  ))}
+                          <td
+                            className={`px-4 py-3 font-medium ${
+                              row.status === 'available' ? 'text-slate-800' : 'text-amber-950'
+                            }`}
+                          >
+                            {row.localTime}
+                          </td>
+                          <td
+                            className={`px-4 py-3 ${
+                              row.status === 'available' ? 'text-slate-900' : 'text-amber-950'
+                            }`}
+                          >
+                            {row.status === 'available' ? `${row.priceDkkPerKwh?.toFixed(2)} kr/kWh` : 'Unpublished'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </article>
@@ -247,7 +264,7 @@ export default async function RootPage() {
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Overview</p>
         <div className="mt-4 space-y-3 text-sm text-slate-600 sm:text-base">
           <p>{availableHours.length} of {dayCards.length * targetHours.length} tracked hourly prices are currently published.</p>
-          <p>The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four 15-minute rows for each tracked hour from 10:00 through 14:59.</p>
+          <p>The source uses Energinet&apos;s DayAheadPrices dataset for DK1 and averages the four 15-minute rows for each tracked hour from 06:00 through 22:59.</p>
           <p>Prices are shown without adding client-side fetching or changing the route structure.</p>
         </div>
       </section>
