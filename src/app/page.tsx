@@ -246,11 +246,11 @@ export default async function RootPage() {
         <p className="text-sm font-medium tracking-[0.2em] text-slate-500 uppercase">Power Hour</p>
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-            DK1 daytime electricity prices
+            Daytime electricity prices
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Danish DK1 average prices for 07:00 through 20:00 from today through one week ahead,
-            sourced from{' '}
+            Danish average prices for 07:00 through 20:00 from today through one week ahead, sourced
+            from{' '}
             <a
               className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4"
               href="https://www.energidataservice.dk/"
@@ -276,7 +276,7 @@ export default async function RootPage() {
           return (
             <article
               key={dayCard.date}
-              className={`rounded-3xl border p-6 shadow-sm sm:p-8 ${
+              className={`rounded-3xl border p-4 shadow-sm sm:p-6 ${
                 hasNumericHours ? 'border-slate-200 bg-white' : 'border-amber-200 bg-amber-50'
               }`}
             >
@@ -287,59 +287,61 @@ export default async function RootPage() {
               >
                 {dayCard.label}
               </p>
-              <div className="mt-4 space-y-6">
-                <div>
-                  <div
-                    className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}
-                  >
-                    {featuredRow.priceDkkPerKwh !== null
-                      ? `${featuredRow.priceDkkPerKwh.toFixed(2)} kr/kWh`
-                      : 'Unpublished'}
+              <div className="mt-4 flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-4">
+                <div className="space-y-6 xl:max-w-sm xl:min-w-[20rem]">
+                  <div>
+                    <div
+                      className={`text-5xl font-semibold tracking-tight sm:text-6xl ${featuredPriceClass}`}
+                    >
+                      {featuredRow.priceDkkPerKwh !== null
+                        ? `${featuredRow.priceDkkPerKwh.toFixed(2)} kr/kWh`
+                        : 'Unpublished'}
+                    </div>
+                    <p
+                      className={`mt-3 text-sm leading-6 sm:text-base ${
+                        featuredRow.source === 'unavailable' ? 'text-amber-900' : 'text-slate-600'
+                      }`}
+                    >
+                      {featuredRow.source === 'published' &&
+                        `Published average at ${featuredRow.localTime} on ${featuredRow.date}.`}
+                      {featuredRow.source === 'estimated' &&
+                        `Estimated average at ${featuredRow.localTime} on ${featuredRow.date}, based on recent same-hour prices.`}
+                      {featuredRow.source === 'unavailable' &&
+                        `The ${featuredRow.localTime} average for ${featuredRow.date} is not available yet and could not be estimated from recent data.`}
+                    </p>
                   </div>
-                  <p
-                    className={`mt-3 text-sm leading-6 sm:text-base ${
+                  <div
+                    className={`flex flex-wrap gap-3 text-sm ${
                       featuredRow.source === 'unavailable' ? 'text-amber-900' : 'text-slate-600'
                     }`}
                   >
-                    {featuredRow.source === 'published' &&
-                      `Published DK1 average at ${featuredRow.localTime} on ${featuredRow.date}.`}
-                    {featuredRow.source === 'estimated' &&
-                      `Estimated DK1 average at ${featuredRow.localTime} on ${featuredRow.date}, based on recent same-hour prices.`}
-                    {featuredRow.source === 'unavailable' &&
-                      `The ${featuredRow.localTime} DK1 average for ${featuredRow.date} is not available yet and could not be estimated from recent data.`}
-                  </p>
-                </div>
-                <div
-                  className={`flex flex-wrap gap-3 text-sm ${
-                    featuredRow.source === 'unavailable' ? 'text-amber-900' : 'text-slate-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 font-medium ${
-                      featuredRow.source === 'unavailable'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {featuredRow.localTime} DK time
-                  </span>
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 font-medium ${
-                      featuredRow.source === 'published'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : featuredRow.source === 'estimated'
-                          ? 'bg-yellow-100 text-yellow-800'
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 font-medium ${
+                        featuredRow.source === 'unavailable'
+                          ? 'bg-amber-100 text-amber-800'
                           : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {featuredRow.source === 'published'
-                      ? 'Published'
-                      : featuredRow.source === 'estimated'
-                        ? 'Estimated'
-                        : 'Unavailable'}
-                  </span>
+                      }`}
+                    >
+                      {featuredRow.localTime} DK time
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 font-medium ${
+                        featuredRow.source === 'published'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : featuredRow.source === 'estimated'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {featuredRow.source === 'published'
+                        ? 'Published'
+                        : featuredRow.source === 'estimated'
+                          ? 'Estimated'
+                          : 'Unavailable'}
+                    </span>
+                  </div>
                 </div>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <div className="min-w-0 flex-1 overflow-x-auto rounded-2xl border border-slate-200">
                   <table className="min-w-full border-collapse text-left text-sm">
                     <tbody>
                       <tr className="bg-slate-50 text-slate-600">
