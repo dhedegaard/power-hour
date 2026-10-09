@@ -11,3 +11,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Build
 
 `npm run build` prerenders `/` with live data from `api.energidataservice.dk`. A 429 from that API fails the build.
+
+## Commands
+
+- `npm run dev` / `npm run build` / `npm run start`
+- `npm run lint` (ESLint)
+
+No tests and no typecheck script; verify with `lint` + `build`. No GitHub Actions; Vercel deploys on push to `main`.
