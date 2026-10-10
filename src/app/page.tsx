@@ -197,6 +197,15 @@ function getHourlyRow(
   }
 }
 
+// Sequential on purpose: the API rate-limits bursts (retries live in the client).
+async function fetchDaysSequentially(dayKeys: string[]): Promise<HistoricalDay[]> {
+  const days: HistoricalDay[] = []
+  for (const dayKey of dayKeys) {
+    days.push({ date: dayKey, prices: await getDailyPrices({ dayKey, priceArea: 'DK1' }) })
+  }
+  return days
+}
+
 async function getPricePageData(now: Date) {
   'use cache'
   cacheLife('minutes')
@@ -205,19 +214,8 @@ async function getPricePageData(now: Date) {
   const historicalDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, -(7 - index)))
   const visibleDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, index))
 
-  const historicalPriceResponses = await Promise.all(
-    historicalDayKeys.map(async (dayKey) => ({
-      date: dayKey,
-      prices: await getDailyPrices({ dayKey, priceArea: 'DK1' }),
-    }))
-  )
-
-  const visiblePriceResponses = await Promise.all(
-    visibleDayKeys.map(async (dayKey) => ({
-      date: dayKey,
-      prices: await getDailyPrices({ dayKey, priceArea: 'DK1' }),
-    }))
-  )
+  const historicalPriceResponses = await fetchDaysSequentially(historicalDayKeys)
+  const visiblePriceResponses = await fetchDaysSequentially(visibleDayKeys)
 
   return visiblePriceResponses.map((day, index) => ({
     date: day.date,
