@@ -5,13 +5,13 @@ import { DayAheadPricesResponse } from './energidata-client.schemas'
 
 const dayKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
-const MAX_ATTEMPTS = 8
+const MAX_ATTEMPTS = 4
 const DEFAULT_RETRY_DELAY_SECONDS = 10
 const MAX_RETRY_DELAY_SECONDS = 30
 // The API allows roughly 3 calls per 10 s window; retry-after can undershoot, so pad it.
 const RETRY_PADDING_SECONDS = 1
 
-// A 429 fails builds that prerender many days, so honour retry-after before giving up.
+// Honour retry-after on 429; Next gives up on a prerender cache fill after ~50 s, so keep attempts few.
 async function fetchWithRetry(url: string): Promise<Response> {
   for (let attempt = 1; ; attempt++) {
     const response = await fetch(url)
@@ -28,26 +28,25 @@ async function fetchWithRetry(url: string): Promise<Response> {
   }
 }
 
-const getDailyPricesInput = z.object({
-  dayKey: dayKeySchema,
+const getPricesInput = z.object({
+  startDayKey: dayKeySchema,
+  // Exclusive, like the API's own `end` parameter.
+  endDayKey: dayKeySchema,
   priceArea: z.literal('DK1'),
 })
 
-export const getDailyPrices = z
+// One ranged request: the API only allows ~3 calls per 10 s, so a call per day can't finish a build.
+export const getPrices = z
   .function({
-    input: [getDailyPricesInput],
-    output: z.union([DayAheadPricesResponse, z.null()]),
+    input: [getPricesInput],
+    output: DayAheadPricesResponse,
   })
-  .implementAsync(async function getDailyPrices({ dayKey, priceArea }) {
+  .implementAsync(async function getPrices({ startDayKey, endDayKey, priceArea }) {
     'use cache'
     cacheLife('minutes')
 
-    const nextDay = new Date(`${dayKey}T00:00:00Z`)
-    nextDay.setUTCDate(nextDay.getUTCDate() + 1)
-    const endDayKey = nextDay.toISOString().slice(0, 10)
-
     const params = new URLSearchParams({
-      start: dayKey,
+      start: startDayKey,
       end: endDayKey,
       sort: 'TimeDK',
       filter: JSON.stringify({ PriceArea: [priceArea] }),
@@ -63,6 +62,5 @@ export const getDailyPrices = z
       })
     }
 
-    const parsedResponse = DayAheadPricesResponse.parse(await response.json())
-    return parsedResponse.records.length > 0 ? parsedResponse : null
+    return DayAheadPricesResponse.parse(await response.json())
   })

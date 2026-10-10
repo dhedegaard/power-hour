@@ -1,4 +1,5 @@
-import { getDailyPrices } from '@/clients/energidata-client'
+import { getPrices } from '@/clients/energidata-client'
+import type { DayAheadPricesResponse } from '@/clients/energidata-client.schemas'
 import { cacheLife } from 'next/cache'
 
 type HourlyPriceRow = {
@@ -14,9 +15,11 @@ type DayPriceCard = {
   hours: HourlyPriceRow[]
 }
 
+type DailyPrices = DayAheadPricesResponse | null
+
 type HistoricalDay = {
   date: string
-  prices: Awaited<ReturnType<typeof getDailyPrices>>
+  prices: DailyPrices
 }
 
 const targetHours = [
@@ -102,7 +105,7 @@ function getDayLabel(dayKey: string, offset: number) {
 function getPublishedHourlyPrice(
   dayKey: string,
   localTime: (typeof targetHours)[number],
-  dailyPrices: Awaited<ReturnType<typeof getDailyPrices>>
+  dailyPrices: DailyPrices
 ) {
   const hourStart = `${dayKey}T${localTime}:00`
   const nextHour = `${String(Number.parseInt(localTime.slice(0, 2), 10) + 1).padStart(2, '0')}:00:00`
@@ -164,7 +167,7 @@ function getEstimatedHourlyPrice(
 function getHourlyRow(
   dayKey: string,
   localTime: (typeof targetHours)[number],
-  dailyPrices: Awaited<ReturnType<typeof getDailyPrices>>,
+  dailyPrices: DailyPrices,
   historicalDays: HistoricalDay[]
 ): HourlyPriceRow {
   const publishedPrice = getPublishedHourlyPrice(dayKey, localTime, dailyPrices)
@@ -197,13 +200,11 @@ function getHourlyRow(
   }
 }
 
-// Sequential on purpose: the API rate-limits bursts (retries live in the client).
-async function fetchDaysSequentially(dayKeys: string[]): Promise<HistoricalDay[]> {
-  const days: HistoricalDay[] = []
-  for (const dayKey of dayKeys) {
-    days.push({ date: dayKey, prices: await getDailyPrices({ dayKey, priceArea: 'DK1' }) })
-  }
-  return days
+function splitByDay(response: DayAheadPricesResponse, dayKeys: string[]): HistoricalDay[] {
+  return dayKeys.map((dayKey) => {
+    const records = response.records.filter((record) => record.TimeDK.startsWith(dayKey))
+    return { date: dayKey, prices: records.length > 0 ? { ...response, records } : null }
+  })
 }
 
 async function getPricePageData(now: Date) {
@@ -214,8 +215,13 @@ async function getPricePageData(now: Date) {
   const historicalDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, -(7 - index)))
   const visibleDayKeys = Array.from({ length: 7 }, (_, index) => addDays(todayKey, index))
 
-  const historicalPriceResponses = await fetchDaysSequentially(historicalDayKeys)
-  const visiblePriceResponses = await fetchDaysSequentially(visibleDayKeys)
+  const response = await getPrices({
+    startDayKey: historicalDayKeys[0]!,
+    endDayKey: addDays(todayKey, 7),
+    priceArea: 'DK1',
+  })
+  const historicalPriceResponses = splitByDay(response, historicalDayKeys)
+  const visiblePriceResponses = splitByDay(response, visibleDayKeys)
 
   return visiblePriceResponses.map((day, index) => ({
     date: day.date,
